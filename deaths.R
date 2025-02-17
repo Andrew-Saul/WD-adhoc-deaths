@@ -13,25 +13,40 @@
 ##########################################
 
 ### 1. Housekeeping ----
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(odbc,
+               dplyr,
+               readr,
+               readxl,
+               tidylog,
+               tidyr,
+               stringr,
+               janitor,
+               arrow,
+               writexl,
+               phsmethods,
+               ggplot2,
+               zoo,
+               fuzzyjoin)
 
-# Load Packages
-library(odbc)
-#library(haven)
-library(dplyr)
-library(readr)
-library(readxl)
-library(tidylog)
-library(tidyr)
-library(stringr)
-library(janitor)
-library(arrow)
-#library(magrittr)
-#library(lubridate)
-library(writexl)
-library(phsmethods)
-library(ggplot2)
-library(zoo)
-library(fuzzyjoin)
+# # Load Packages
+# library(odbc)
+# #library(haven)
+# library(dplyr)
+# library(readr)
+# library(readxl)
+# library(tidylog)
+# library(tidyr)
+# library(stringr)
+# library(janitor)
+# library(arrow)
+# #library(magrittr)
+# #library(lubridate)
+# library(writexl)
+# library(phsmethods)
+# library(ggplot2)
+# library(zoo)
+# library(fuzzyjoin)
 
 # Filepaths
 
@@ -68,10 +83,10 @@ nrs_icd3 <- read_xlsx(paste0(deaths_folder, "vital-events-refernce-tables-2023-a
 #   anti_join(icd_chapters)
 
 # read in icd groupings with regex 
-icd_grouping <- read_xlsx("/conf/LIST_analytics/West Dunbartonshire/AdHoc/Deaths/icd_groupings.xlsx")
+icd_grouping <- read_xlsx(paste0(deaths_folder, "icd_groupings.xlsx"))
 icd_grouping <- icd_grouping %>% 
   clean_names() %>%
-  filter(!is.na(regex)) %>%
+  filter(!is.na(regex)) %>% # removes rows containing NA values in regex column
   select(regex, description)
 
 # 1 letter codes for deaths
@@ -112,7 +127,7 @@ dbDisconnect(channel)
 #read extract
 #deaths_extract_c <- read_rds(paste0(deaths_folder, "temp_extract.rds"))
 
-### 3. Populations ----
+### 3. Populations up until 2023 ----
 
 # read in population estimates
 pops <- read_rds(paste0(lookups_folder, "Populations/Estimates/HSCP2019_pop_est_1981_2023.rds")) %>%
@@ -222,8 +237,9 @@ cause_deaths <- wd_deaths %>%
     icd_1digit == "R" ~ "XVIII. Symptoms, signs and abnormal clinical and laboratory findings, not elsewhere classified",
     icd_1digit %in% c("V", "W", "X", "Y") ~ "XX.  External causes of morbidity and mortality",
     icd_1digit == "U" ~ "XXII. Codes for Special Purposes"
-  )) %>%
-  regex_left_join(icd_grouping, by = c("code1" = "regex")) %>%
+  ))  %>%
+  #regex_left_join(icd_grouping,  by = c("code1" = "regex")) %>%
+  regex_full_join(icd_grouping,  by = c("code1" = "regex")) %>% 
   select(-regex) %>%
   mutate(description.y = case_when(
     underlying_cause_of_death == "Y870" ~ "Intentional self-harm",
